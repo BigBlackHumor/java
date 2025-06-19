@@ -23,6 +23,7 @@ import org.jsoup.select.Elements;
 
 import java.awt.geom.Arc2D;
 import java.awt.geom.Path2D;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -416,8 +417,6 @@ public class Main {
                     if (this.paperType.equals("Акция")) {
                         paperInfo.paperInfoTable.setLayout(new GridLayout(3, 2));
                         paperInfo.paperInfoTable.remove(paperInfo.emptyTableFiller);
-                        paperInfo.paperInfoTable.remove(paperInfo.paperISIN);
-                        paperInfo.paperInfoTable.remove(paperInfo.paperType);
                         paperInfo.paperInfoTable.remove(paperInfo.obligationNominal);
                         paperInfo.paperInfoTable.remove(paperInfo.obligationCoupon);
                         paperInfo.paperInfoTable.remove(paperInfo.NKD);
@@ -472,8 +471,6 @@ public class Main {
                     } else {
                         paperInfo.paperInfoTable.setLayout(new GridLayout(6, 2));
                         paperInfo.paperInfoTable.remove(paperInfo.emptyTableFiller);
-                        paperInfo.paperInfoTable.remove(paperInfo.paperISIN);
-                        paperInfo.paperInfoTable.remove(paperInfo.paperType);
                         paperInfo.paperInfoTable.remove(paperInfo.closePrice);
                         paperInfo.paperInfoTable.remove(paperInfo.openPrice);
                         paperInfo.paperInfoTable.remove(paperInfo.actualPrice);
@@ -588,7 +585,7 @@ public class Main {
             setTitle("Invest demo");
             userPortfolioData = new portfolioData(sharedPapers);
             analyticsData = new analyticsData(sharedPapers);
-            tradingStrategies = new tradingStrategies();
+            tradingStrategies = new tradingStrategies(sharedPapers);
             papersOperations = new papersOperations(sharedPapers);
 
             menuPanel menuPanel = new menuPanel(userPortfolioData, analyticsData, tradingStrategies, papersOperations);
@@ -640,6 +637,7 @@ public class Main {
 
             agreementDialog.add(checkBoxPanel, BorderLayout.CENTER);
             agreementDialog.add(acceptButton, BorderLayout.SOUTH);
+            agreementDialog.setResizable(false);
 
             agreementDialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
             agreementDialog.addWindowListener(new WindowAdapter() {
@@ -736,6 +734,39 @@ public class Main {
     public static class papers extends JPanel implements paperInfo.ButtonClickListener { //панель с поиском бумаг
         MapProcessor processor = new MapProcessor();
         JPanel papersButtons = new JPanel();
+        JComboBox<String> comboBoxCopy_1 = new JComboBox() {
+            {
+                setEditable(true);
+                setSelectedIndex(-1);
+                setFont(mainFont);
+                setToolTipText("Введите название или тикер...");
+            }
+        };
+        JComboBox<String> comboBoxCopy_2 = new JComboBox() {
+            {
+                setEditable(true);
+                setSelectedIndex(-1);
+                setFont(mainFont);
+                setToolTipText("Введите название или тикер...");
+            }
+        };
+        JComboBox<String> comboBoxCopy_3 = new JComboBox() {
+            {
+                setEditable(true);
+                setSelectedIndex(-1);
+                setFont(mainFont);
+                setToolTipText("Введите название или тикер...");
+            }
+        };
+        public JComboBox<String> getComboBoxCopy_1(){
+            return(comboBoxCopy_1);
+        }
+        public JComboBox<String> getComboBoxCopy_2(){
+            return(comboBoxCopy_2);
+        }
+        public JComboBox<String> getComboBoxCopy_3(){
+            return(comboBoxCopy_3);
+        }
         static Document actionsInfoSite_01;
         static {
             try {
@@ -779,7 +810,14 @@ public class Main {
         String[] actionNames;
         String[] obligationNames;
         String[] actionTickers = Arrays.copyOfRange(actionTickersAll, 2, actionTickersAll.length);
-        JComboBox<String> comboBox = new JComboBox<>();
+        JComboBox<String> comboBox = new JComboBox<>() {
+            {
+                setEditable(true);
+                setSelectedIndex(-1);
+                setFont(mainFont);
+                setToolTipText("Введите название или тикер...");
+            }
+        };
         userButton action = new userButton("    Акции    ");
         userButton obligation = new userButton("Облигации");
         private final JPanel papersList = new JPanel() {
@@ -891,6 +929,7 @@ public class Main {
 
             ItemListener forActions = e -> {
                 if (comboBox.isDisplayable() && e.getStateChange() == ItemEvent.SELECTED) {
+                    repaintTable(true, false);
                     paperInfo.paperInfoTable.setLayout(new GridLayout(3, 2));
                     paperInfo.paperInfoTable.remove(paperInfo.emptyTableFiller);
                     paperInfo.paperInfoTable.add(paperInfo.paperISIN);
@@ -947,11 +986,10 @@ public class Main {
                 }
             };
 
-            comboBox.setEditable(true);
-            comboBox.setSelectedIndex(-1);
-            comboBox.setFont(mainFont);
-            comboBox.setToolTipText("Введите название или тикер...");
             comboBox.setModel(new DefaultComboBoxModel<>(vector));
+            comboBoxCopy_1.setModel(new DefaultComboBoxModel<>(vector));
+            comboBoxCopy_2.setModel(new DefaultComboBoxModel<>(vector));
+            comboBoxCopy_3.setModel(new DefaultComboBoxModel<>(vector));
 
             for (ItemListener listener : comboBox.getItemListeners()) {
                 comboBox.removeItemListener(listener);
@@ -961,6 +999,13 @@ public class Main {
             textField.setFocusable(true);
             textField.setText("");
             textField.addKeyListener(new ComboListener(comboBox, vector));
+
+            JTextField textFieldFromCopy_1 = (JTextField) comboBoxCopy_1.getEditor().getEditorComponent();
+            JTextField textFieldFromCopy_2 = (JTextField) comboBoxCopy_2.getEditor().getEditorComponent();
+            JTextField textFieldFromCopy_3 = (JTextField) comboBoxCopy_3.getEditor().getEditorComponent();
+            textFieldFromCopy_1.addKeyListener(new ComboListener(comboBoxCopy_1, vector));
+            textFieldFromCopy_2.addKeyListener(new ComboListener(comboBoxCopy_2, vector));
+            textFieldFromCopy_3.addKeyListener(new ComboListener(comboBoxCopy_3, vector));
 
             action.setEnabled(false);
             action.addActionListener(_ -> {
@@ -1032,10 +1077,6 @@ public class Main {
 
                             driver.get(STR."https://smart-lab.ru/q/bonds/\{obligationISIN}");
                             Document obligationDataSite = Jsoup.parse(driver.getPageSource());
-//                            Document obligationDataSite = Jsoup.connect(STR."https://smart-lab.ru/q/bonds/\{obligationISIN}").userAgent("Mozilla/5.0 " +
-//                                    "(Windows NT 10.0; Win64; x64) " +
-//                                    "AppleWebKit/537.36 (KHTML, like Gecko) " +
-//                                    "Chrome/58.0.3029.110 Safari/537.36").get();
 
                             paperInfo.NKD.setText(STR."НКД: \{obligationDataSite.select("div[title='Накопленный купонный доход']")
                                     .select("div").get(2).text()}");
@@ -1131,12 +1172,12 @@ public class Main {
             buttons.add(obligation);
             papersButtons.add(buttons);
             papersButtons.add(comboBox);
-
             add(papersButtons, BorderLayout.NORTH);
             add(scrollPane, BorderLayout.CENTER);
         }
     }
     public static class portfolioButtons extends JPanel { //кнопки в блоке "портфель"
+        mainFrame mainFrame;
         papers papers;
         static JLabel portfolioCost = new JLabel("Стоимость") {
             {
@@ -1155,6 +1196,17 @@ public class Main {
         static Integer[] countsOfPapers;
         public portfolioButtons(papers searchedPapers) {
             this.papers = searchedPapers;
+
+            JDialog waitDialog = new JDialog(mainFrame, "Идёт загрузка, приложение не зависло!", false) {
+                {
+                    setLayout(new BorderLayout());
+                    setSize(300,50);
+                    add(new defaultLabel("Загрузка..."), BorderLayout.CENTER);
+                    setResizable(false);
+                    setLocationRelativeTo(mainFrame);
+                }
+            };
+
             JFileChooser brokerReportChooser = new JFileChooser();
             addBrokerReport.addActionListener(_ -> {
                 brokerReportChooser.setDialogTitle("Выберите HTML-файл отчёта брокера");
@@ -1162,6 +1214,7 @@ public class Main {
                 if (userSelection == JFileChooser.APPROVE_OPTION) {
                     File selectedFile = brokerReportChooser.getSelectedFile();
                     try {
+                        waitDialog.setVisible(true);
                         Document doc = Jsoup.parse(selectedFile, "UTF-8");
                         Element searchBorder = doc.select("p:containsOwn(Денежные средства)").first();
                         assert searchBorder != null;
@@ -1183,9 +1236,9 @@ public class Main {
                         double nominal = 1000.0;
 
                         for (int i = 0; i < isinsForSearching.length; i++) {
+                            if (countsOfPapers[i] == 0) continue;
                             driver.get(STR."https://smart-lab.ru/q/bonds/\{isinsForSearching[i]}");
                             Document obligationDataSite = Jsoup.parse(driver.getPageSource());
-
                             Elements divs = obligationDataSite.select("div.quotes-simple-table__item");
                             String currency = " ";
                             String sector = " ";
@@ -1217,14 +1270,17 @@ public class Main {
                                     nominal *= analyticsData.cnyCourse;
                                     break;
                             }
+
                             papers.papersList.add(new userPortfolioPaper(STR."<html><table><tr><td rowspan=\"2\" style='text-align: left; margin-right: 10'>\{namesForSearching[i]}</td>" +
-                                    STR."<td style='text-align: right;'>\{actualPrice}</td><td rowspan=\"2\" style='text-align: right;'>\{countsOfPapers[i]} шт.</td></tr><tr><td style='text-align: right;'>\{priceChange}</td></tr>",
+                                    STR."<td style='text-align: right;'>\{actualPrice}</td><td rowspan=\"2\" style='text-align: right;'>\{countsOfPapers[i]} шт.</td></tr><tr><td style='text-align: right;'>\{priceChange}</td></tr></html></table>",
                                     namesForSearching[i], "Облигация", actualPrice, nominal, countsOfPapers[i], sector));
                             papers.papersList.add(Box.createRigidArea(new Dimension(3, 10)));
                             papers.papersList.updateUI();
                             portfolioData.circleGraphicTypesOfPapers.revalidate();
                             portfolioData.circleGraphicTypesOfPapers.repaint();
+                            if (i + 1 == isinsForSearching.length) waitDialog.dispose();
                         }
+
                     } catch (IOException e) {
                         System.err.println("ОШИБКА");
                     }
@@ -1263,6 +1319,7 @@ public class Main {
         public static void getSum(double sum) {
             portfolioButtons.portfolioCost.setText(STR."<html>Ст-ть портфеля:<br> \{String.format("%.3f", sum)} руб.</html>");
             analyticsData.setSum(sum);
+            System.out.println(sum);
         }
         Object[] textForPortfolioButtons = new Object[7];
         private final List<ButtonClickListener> listeners = new ArrayList<>();
@@ -1305,7 +1362,7 @@ public class Main {
                 if (paperType.getText().equals("Акция")) {
                     textForPortfolioButtons[0] = STR."<html><table><tr><td rowspan=\"2\" style='text-align: left;'>\{paperName.getText()}</td>" +
                             STR."<td style='text-align: right;'>\{actualPrice.getText().split(" ", 2)[1]}" +
-                            STR."</td><td rowspan=\"2\" style='text-align: right;'>\{countOfPapers} шт.</td></tr><tr><td style='text-align: right;'>\{priceChange.getText().split(" ", 4)[3]}</td></tr>";
+                            STR."</td><td rowspan=\"2\" style='text-align: right;'>\{countOfPapers} шт.</td></tr><tr><td style='text-align: right;'>\{priceChange.getText().split(" ", 4)[3]}</td></tr></table></html>";
                     textForPortfolioButtons[1] = paperName.getText().split(" ", 2)[1];
                     textForPortfolioButtons[3] = actualPrice.getText().split(" ", 2)[1];
                     textForPortfolioButtons[4] = 1.0;
@@ -1313,7 +1370,7 @@ public class Main {
                 } else {
                     textForPortfolioButtons[0] = STR."<html><table><tr><td rowspan=\"2\" style='text-align: left; margin-right: 10'>\{paperName.getText()}</td>" +
                             STR."<td style='text-align: right;'>\{actualPrice.getText().split(" ", 2)[1]}"+
-                            STR."</td><td rowspan=\"2\" style='text-align: right;'>\{countOfPapers} шт.</td></tr><tr><td style='text-align: right;'>\{priceChange.getText().split(" ", 4)[3]}</td></tr>";
+                            STR."</td><td rowspan=\"2\" style='text-align: right;'>\{countOfPapers} шт.</td></tr><tr><td style='text-align: right;'>\{priceChange.getText().split(" ", 4)[3]}</td></tr></table></html>";
                     textForPortfolioButtons[1] = paperName.getText();
                     textForPortfolioButtons[3] = actualPrice.getText().split(" ", 2)[1].replace("%", "");
                     if (obligationNominal.getText().split(" ", 3)[2].equals("RUB")) {
@@ -1459,10 +1516,13 @@ public class Main {
         };
         static JPanel papersList;
         GraphPanel graphPanel;
-        private static String textFromButtons = "Стоимость портфеля";
+        static String textFromButtons = "Стоимость портфеля";
         public static void setSum(double sum) {
-            textFromButtons = STR."Стоимость портфеля: \{sum} руб.";
+            portfolioCost.setText(STR."Стоимость портфеля: \{sum} руб.");
+            //textFromButtons = STR."Стоимость портфеля: \{sum} руб.";
+            portfolioCost.updateUI();
         }
+        static defaultLabel portfolioCost = new defaultLabel("Стоимость портфеля");
         public analyticsData(papers sharedPapers) throws IOException {
             papersList = sharedPapers.getPapersList_2();
             Document doc = Jsoup.connect("https://cbr.ru/currency_base/daily/").userAgent("Mozilla/5.0 " +
@@ -1497,8 +1557,7 @@ public class Main {
 //                    .first()).nextElementSibling()).nextElementSibling()).text()}"));
 
             onlineExchangeData.add(new defaultLabel("Ставка ЦБ: 20%"));
-            //onlineExchangeData.add(portfolioButtons.portfolioCost);
-            onlineExchangeData.add(new defaultLabel(textFromButtons)); //TODO
+            onlineExchangeData.add(portfolioCost);
 
             papersList.addContainerListener(new ContainerListener() {
                 @Override
@@ -1561,13 +1620,295 @@ public class Main {
                 setLayout(new BorderLayout());
             }
         };
-        papers buyingPapers = new papers();
-        papers sellingPapers = new papers();
-        papers holdingPapers = new papers();
-        userButton buyigButton = new userButton("Уведомления");
-        userButton sellingButton = new userButton("Уведомления");
-        userButton holdingButton = new userButton("Уведомления");
-        public tradingStrategies() {
+        JPanel buyingPapers = new JPanel(new BorderLayout()) {
+            {
+                setName("buying");
+            }
+        };
+        JPanel sellingPapers = new JPanel(new BorderLayout()) {
+            {
+                setName("selling");
+            }
+        };
+        JPanel holdingPapers = new JPanel(new BorderLayout()) {
+            {
+                setName("holding");
+            }
+        };
+        userButton buyigButton = new userButton("Уведомления") {
+            {
+                setEnabled(false);
+                addActionListener(_ -> {
+                    JDialog dialog = new JDialog(mainFrame, "Список на покупку", false) {
+                        {
+                            setLayout(new GridLayout(buyingList.size() + 1, 4));
+                            setResizable(false);
+                            setSize(600, 15 + buyingList.size() * 100);
+                            add(new defaultLabel("Название"));
+                            add(new defaultLabel("Акт. цена"));
+                            add(new defaultLabel("Цел. цена"));
+                            add(new defaultLabel("Кол-во"));
+                        }
+                    };
+                    String[] papers = buyingList.toArray(String[]::new);
+                    for (String paper : papers) {
+                        dialog.add(new defaultLabel(paper.split("XXX")[0]));
+                        dialog.add(new defaultLabel(paper.split("XXX")[1]));
+                        dialog.add(new defaultLabel(paper.split("XXX")[2]));
+                        dialog.add(new defaultLabel(paper.split("XXX")[3]));
+                    }
+                    dialog.setVisible(true);
+                });
+            }
+        };
+        userButton sellingButton = new userButton("Уведомления") {
+            {
+                setEnabled(false);
+                addActionListener(_ -> {
+                    JDialog dialog = new JDialog(mainFrame, "Список на продажу", false) {
+                        {
+                            setLayout(new GridLayout(sellingList.size() + 1, 4));
+                            setResizable(false);
+                            setSize(600, 15 + sellingList.size() * 100);
+                            add(new defaultLabel("Название"));
+                            add(new defaultLabel("Акт. цена"));
+                            add(new defaultLabel("Цел. цена"));
+                            add(new defaultLabel("Кол-во"));
+                        }
+                    };
+                    String[] papers = sellingList.toArray(String[]::new);
+                    for (String paper : papers) {
+                        dialog.add(new defaultLabel(paper.split("XXX")[0]));
+                        dialog.add(new defaultLabel(paper.split("XXX")[1]));
+                        dialog.add(new defaultLabel(paper.split("XXX")[2]));
+                        dialog.add(new defaultLabel(paper.split("XXX")[3]));
+                    }
+                    dialog.setVisible(true);
+                });
+            }
+        };
+        userButton holdingButton = new userButton("Уведомления") {
+            {
+                setEnabled(false);
+                addActionListener(_ -> {
+                    JDialog dialog = new JDialog(mainFrame, "Список на удержание", false) {
+                        {
+                            setLayout(new GridLayout(holdingList.size()+1, 4));
+                            setResizable(false);
+                            setSize(600, 15 + holdingList.size() * 100);
+                            add(new defaultLabel("Название"));
+                            add(new defaultLabel("Акт. цена"));
+                            add(new defaultLabel("Цел. цена"));
+                            add(new defaultLabel("Кол-во"));
+                        }
+                    };
+                    String[] papers = holdingList.toArray(String[]::new);
+                    for (String paper : papers) {
+                        dialog.add(new defaultLabel(paper.split("XXX")[0]));
+                        dialog.add(new defaultLabel(paper.split("XXX")[1]));
+                        dialog.add(new defaultLabel(paper.split("XXX")[2]));
+                        dialog.add(new defaultLabel(paper.split("XXX")[3]));
+                    }
+                    dialog.setVisible(true);
+                });
+            }
+        };
+        mainFrame mainFrame;
+        JPanel buyingPapersListPanel = new JPanel() {
+            {
+                setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+                setBackground(mainColor2);
+                add(Box.createRigidArea(new Dimension(3, 10)));
+            }
+        };
+        JPanel sellingPapersListPanel = new JPanel() {
+            {
+                setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+                setBackground(mainColor2);
+                add(Box.createRigidArea(new Dimension(3, 10)));
+            }
+        };
+        JPanel holdingPapersListPanel = new JPanel() {
+            {
+                setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+                setBackground(mainColor2);
+                add(Box.createRigidArea(new Dimension(3, 10)));
+            }
+        };
+        ArrayList<String> buyingList = new ArrayList<>();
+        ArrayList<String> sellingList = new ArrayList<>();
+        ArrayList<String> holdingList = new ArrayList<>();
+        ItemListener addPaper = e -> {
+            if (e.getStateChange() == ItemEvent.SELECTED) {
+                JComboBox<?> currentComboBox = (JComboBox<?>) e.getSource();
+                if (currentComboBox.isDisplayable()) {
+                    String priceChange = "";
+                    String actualPrice = "";
+                    String paperName = e.getItem().toString();
+                    JTextField numberOfPapers = new JTextField("1") {
+                        {
+                            setFont(mainFont);
+                        }
+                    };
+                    JTextField pointPrice = new JTextField() {
+                        {
+                            setFont(mainFont);
+                        }
+                    };
+
+                    String receivedItem = e.getItem().toString().split(" ", 2)[1];
+                    Element hrefElement = papers.actionInfoSite_02.select(STR."a:containsOwn(\{receivedItem})").first();
+                    assert hrefElement != null;
+                    String href = hrefElement.attr("href");
+                    try {
+                        Document tempHref = Jsoup.connect(STR."https://mfd.ru\{href}").userAgent("Mozilla/5.0 " +
+                                "(Windows NT 10.0; Win64; x64) " +
+                                "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                                "Chrome/58.0.3029.110 Safari/537.36").get();
+                        Element tempName = tempHref.getElementsByClass("m-companytable-last").getFirst();
+                        Elements tds = tempHref.select("tr td");
+                        for (Element td : tds) {
+                            if (td.text().equals("Изм")) {
+                                priceChange = Objects.requireNonNull(td.nextElementSibling()).text();
+                            }
+                        }
+                        assert tempName != null;
+                        actualPrice = tempName.text();
+                        pointPrice.setText(actualPrice);
+
+                        String finalActualPrice = actualPrice;
+                        String finalPriceChange = priceChange;
+                        JDialog addPaperDialog = new JDialog(mainFrame, STR."Добавить в стратегию \{paperName}", true) {
+                            {
+                                setSize(400, 250);
+                                setLayout(new GridLayout(4, 2));
+                                add(new defaultLabel("Текущая цена"));
+                                add(new defaultLabel(finalActualPrice));
+                                add(new defaultLabel("Количество, шт"));
+                                add(numberOfPapers);
+                                add(new defaultLabel("Целевая цена, руб"));
+                                add(pointPrice);
+                                add(new JLabel(""));
+                                add(new userButton("Добавить") {
+                                    {
+                                        addActionListener(_ -> {
+                                            switch (currentComboBox.getParent().getParent().getName()) {
+                                                case "buying":
+                                                    buyingPapersListPanel.add(new userButton(STR."<html><table><tr><td rowspan=\"2\" style='text-align: left; margin-right: 10'>\{paperName}</td>" +
+                                                            STR."<td style='text-align: right;'>\{finalActualPrice}"+
+                                                            STR."</td><td rowspan=\"2\" style='text-align: right;'>\{numberOfPapers.getText()} шт.</td></tr><tr><td style='text-align: right;'>\{finalPriceChange}</td></tr></table></html>"));
+                                                    buyingList.add(STR."\{paperName}XXX\{finalActualPrice}XXX\{pointPrice.getText()}XXX\{numberOfPapers.getText()}");
+                                                    buyingPapersListPanel.add(Box.createRigidArea(new Dimension(3, 10)));
+                                                    buyingPapersListPanel.updateUI();
+                                                    buyigButton.setEnabled(true);
+                                                    break;
+                                                case "selling":
+                                                    sellingPapersListPanel.add(new userButton(STR."<html><table><tr><td rowspan=\"2\" style='text-align: left; margin-right: 10'>\{paperName}</td>" +
+                                                            STR."<td style='text-align: right;'>\{finalActualPrice}"+
+                                                            STR."</td><td rowspan=\"2\" style='text-align: right;'>\{numberOfPapers.getText()} шт.</td></tr><tr><td style='text-align: right;'>\{finalPriceChange}</td></tr></table></html>"));
+                                                    sellingList.add(STR."\{paperName}XXX\{finalActualPrice}XXX\{pointPrice.getText()}XXX\{numberOfPapers.getText()}");
+                                                    sellingPapersListPanel.add(Box.createRigidArea(new Dimension(3, 10)));
+                                                    sellingPapersListPanel.updateUI();
+                                                    sellingButton.setEnabled(true);
+                                                    break;
+                                                case "holding":
+                                                    holdingPapersListPanel.add(new userButton(STR."<html><table><tr><td rowspan=\"2\" style='text-align: left; margin-right: 10'>\{paperName}</td>" +
+                                                            STR."<td style='text-align: right;'>\{finalActualPrice}"+
+                                                            STR."</td><td rowspan=\"2\" style='text-align: right;'>\{numberOfPapers.getText()} шт.</td></tr><tr><td style='text-align: right;'>\{finalPriceChange}</td></tr></table></html>"));
+                                                    holdingList.add(STR."\{paperName}XXX\{finalActualPrice}XXX\{pointPrice.getText()}XXX\{numberOfPapers.getText()}");
+                                                    holdingPapersListPanel.add(Box.createRigidArea(new Dimension(3, 10)));
+                                                    holdingPapersListPanel.updateUI();
+                                                    holdingButton.setEnabled(true);
+                                                    break;
+                                            }
+                                            showNotification("Время покупать!", "Одна из добавленных бумаг пересекла заданную цену!");
+                                            dispose();
+                                        });
+                                    }
+                                });
+                            }
+                        };
+                        addPaperDialog.setVisible(true);
+                    } catch (IOException exception) {
+                        throw new RuntimeException(exception);
+                    }
+                }
+            }
+        };
+
+        public static void showNotification(String title, String message) {
+            if (SystemTray.isSupported()) {
+                try {
+                    SystemTray tray = SystemTray.getSystemTray();
+
+                    Image icon = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+                    TrayIcon trayIcon = new TrayIcon(icon);
+                    trayIcon.setImageAutoSize(true);
+
+                    tray.add(trayIcon);
+
+                    trayIcon.displayMessage(title, message, TrayIcon.MessageType.INFO);
+
+                    tray.remove(trayIcon);
+                } catch (Exception e) {
+                    System.err.println("Ошибка при показе уведомления");
+                }
+            } else {
+                System.err.println("Трей не поддерживается");
+            }
+        }
+
+        public tradingStrategies(papers sharedPapers) {
+            JPanel buyingSearch = new JPanel(new GridLayout(2, 1));
+            JPanel sellingSearch = new JPanel(new GridLayout(2, 1));
+            JPanel holdingSearch = new JPanel(new GridLayout(2, 1));
+
+            JComboBox<String> comboBoxBuy = sharedPapers.getComboBoxCopy_1();
+            JComboBox<String> comboBoxSell = sharedPapers.getComboBoxCopy_2();
+            JComboBox<String> comboBoxHold = sharedPapers.getComboBoxCopy_3();
+
+            comboBoxBuy.addItemListener(addPaper);
+            comboBoxSell.addItemListener(addPaper);
+            comboBoxHold.addItemListener(addPaper);
+
+            buyingSearch.add(new JPanel(){
+                {
+                    add(new userButton("Акции") {
+                        {
+                            setEnabled(false);
+                        }
+                    });
+                    add(new userButton("Облигации"));
+                    setLayout(new GridLayout(1, 2));
+                }
+            });
+            sellingSearch.add(new JPanel(){
+                {
+                    add(new userButton("Акции") {
+                        {
+                            setEnabled(false);
+                        }
+                    });
+                    add(new userButton("Облигации"));
+                    setLayout(new GridLayout(1, 2));
+                }
+            });
+            holdingSearch.add(new JPanel(){
+                {
+                    add(new userButton("Акции") {
+                        {
+                            setEnabled(false);
+                        }
+                    });
+                    add(new userButton("Облигации"));
+                    setLayout(new GridLayout(1, 2));
+                }
+            });
+
+            buyingSearch.add(comboBoxBuy);
+            sellingSearch.add(comboBoxSell);
+            holdingSearch.add(comboBoxHold);
+
             setSize(1145, 681);
             setLocation(120, 0);
             setBackground(mainColor1);
@@ -1578,6 +1919,14 @@ public class Main {
             buying.add(new defaultLabel("Покупка"), BorderLayout.NORTH);
             selling.add(new defaultLabel("Продажа"), BorderLayout.NORTH);
             holding.add(new defaultLabel("Держать"), BorderLayout.NORTH);
+
+            buyingPapers.add(buyingSearch, BorderLayout.NORTH);
+            sellingPapers.add(sellingSearch, BorderLayout.NORTH);
+            holdingPapers.add(holdingSearch, BorderLayout.NORTH);
+
+            buyingPapers.add(buyingPapersListPanel, BorderLayout.CENTER);
+            sellingPapers.add(sellingPapersListPanel, BorderLayout.CENTER);
+            holdingPapers.add(holdingPapersListPanel, BorderLayout.CENTER);
 
             buying.add(buyingPapers, BorderLayout.CENTER);
             selling.add(sellingPapers, BorderLayout.CENTER);
@@ -1772,10 +2121,6 @@ public class Main {
                 totalPortfolioValue += closingPrices[i][days - 1] * counts[i];
             }
 
-            // 4. Определяем необходимые изменения для ребалансировки
-//            System.out.println(STR."Текущие веса: \{Arrays.toString(currentWeights)}");
-//            System.out.println(STR."Целевые веса: \{Arrays.toString(targetWeights)}");
-
             double[] adjustments = new double[numAssets];
             for (int i = 0; i < numAssets; i++) {
                 adjustments[i] = targetWeights[i] - currentWeights[i];
@@ -1788,7 +2133,6 @@ public class Main {
             }
 
             // Выводим результаты
-//            System.out.println("\nРебалансировка портфеля:");
             String[][] returnableSum = new String[numAssets][3];
             for (int i = 0; i < numAssets; i++) {
                 if (adjustmentAmounts[i] > 0) {
